@@ -75,6 +75,7 @@ def plot_portfolios(portfolios_series : dict, index_ret, title=None):
     plt.legend()
     plt.show()
 
+
     
 
 
