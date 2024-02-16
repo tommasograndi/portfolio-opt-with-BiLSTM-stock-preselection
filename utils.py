@@ -21,6 +21,7 @@ def price_to_returns(df: pd.DataFrame, log=False, drop_na=False) -> pd.DataFrame
     return result
 
 
+# comulative returns from a series 
 def cumulative_returns_from_series(series: pd.Series, log=False, start=1) -> np.array:
     """
     :param series: pandas series of returns.
@@ -43,6 +44,7 @@ def cumulative_returns_from_series(series: pd.Series, log=False, start=1) -> np.
     return np.array(result)
 
 
+# cumulative returns for a whole dataframe
 def cumulative_returns(df: pd.DataFrame, log=False, start: list = None) -> pd.DataFrame:
     """
     :param df: starting pandas dataframe with returns
@@ -134,7 +136,6 @@ def compute_market_returns(composition: pd.DataFrame, capitalization: pd.DataFra
     weights = capitalization * composition
     weights = (weights.T / weights.sum(axis=1)).T
     weights.fillna(0, inplace=True)
-    weights.fillna(0, inplace=True)
     returns = price_to_returns(prices, log=log, drop_na=False)
     weighted_returns = weights * returns
     result = pd.Series(weighted_returns.sum(axis=1), index=weights.index)
@@ -165,7 +166,7 @@ def get_ranking(predictions, N: list, prices : bool):
     for i in N:
         portfolios[f'Top{i}'] = list(ranking[:i])
 
-    # Return 4 lists with names of the top stocks according to the model's ranking
+    # Return N lists with names of the top stocks according to the model's ranking
     # basically the stocks composing each portfolio with N stocks
        
     return portfolios
