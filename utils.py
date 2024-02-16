@@ -15,7 +15,7 @@ def price_to_returns(df: pd.DataFrame, log=False, drop_na=False) -> pd.DataFrame
     if log:
         result = np.log(df / df.shift(1))
     else:
-        result = (df - df.shift(1) / df.shift(1))
+        result = (df - df.shift(1)) / df.shift(1)
     if drop_na:
         result = result.dropna()
     return result
@@ -121,7 +121,7 @@ def get_trading_dates(start_period: str = "2014-01-01", end_period: str = "2018-
     return dates.strftime('%Y-%m-%d')
 
 
-def compute_market_returns(composition: pd.DataFrame, capitalization: pd.DataFrame, returns: pd.DataFrame, log=False) -> pd.Series:
+def compute_market_returns(composition: pd.DataFrame, capitalization: pd.DataFrame, prices: pd.DataFrame, log=False) -> pd.Series:
     """
     Compute market return as the cap-weighted return of all the stocks.
     :param composition:
@@ -132,8 +132,14 @@ def compute_market_returns(composition: pd.DataFrame, capitalization: pd.DataFra
     """
     # Compute weights
     weights = capitalization * composition
-    weights = weights / weights.sum()
-    weights = weights / weights.sum(axis=1).values.reshape((-1, 1))
+    weights = (weights.T / weights.sum(axis=1)).T
+    weights.fillna(0, inplace=True)
+    weights.fillna(0, inplace=True)
+    returns = price_to_returns(prices, log=log, drop_na=False)
+    weighted_returns = weights * returns
+    result = pd.Series(weighted_returns.sum(axis=1), index=weights.index)
+    return result
+
 
 
 def get_ranking(predictions, N: list, prices : bool):
