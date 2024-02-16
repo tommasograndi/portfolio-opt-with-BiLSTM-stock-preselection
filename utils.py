@@ -2,6 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
+import pandas_market_calendars as mcal
 
 
 def price_to_returns(df: pd.DataFrame, log=False, drop_na=False) -> pd.DataFrame:
@@ -59,6 +60,80 @@ def cumulative_returns(df: pd.DataFrame, log=False, start: list = None) -> pd.Da
     for i in range(len(start)):
         result[df.columns[i]] = cumulative_returns_from_series(df[df.columns[i]], log=log, start=start[i])
     return pd.DataFrame(result)
+
+
+def setup_tables(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Used to add column date to dataframe and day of week. Sort df by date.
+    :param df: starting dataframe
+    :return: df with changed column
+    """
+    X = df.copy()
+    col_name = X.columns[0]
+    X.rename(columns={col_name: "Date"}, inplace=True)
+    X["Date"] = pd.to_datetime(X["Date"], format="%Y%m%d")
+
+    def _function(x):
+        return x.day_name()
+
+    days = X["Date"].apply(_function)
+
+    X.insert(1, column="Day_of_week", value=days)
+    X.sort_values(by=["Date"], inplace=True)
+    X.reset_index(drop=True, inplace=True)
+    return X
+
+
+def select_time_slice(df: pd.DataFrame, start: int = 20020102, end: int = 20191013, date_column_name="Date") -> pd.DataFrame:
+    """
+    :param df: dataframe to slice
+    :param start: starting day
+    :param end: ending day
+    :param date_column_name: name of column containing dates
+    :return: slice of starting df
+    """
+    X = df.copy()
+    start = pd.to_datetime(start, format="%Y%m%d")
+    end = pd.to_datetime(end, format="%Y%m%d")
+    X = X[X[date_column_name] <= end]
+    X = X[X[date_column_name] >= start]
+    return X
+
+
+def get_full_time_stock_in_period(comp_df: pd.DataFrame) -> list:
+    """
+    :param comp_df: dataframe used to specify if a stock is in the market index or not
+    :return: list of stock names
+    """
+    sum_index_series = comp_df.sum(axis=0)
+    objective_value = len(comp_df)
+    result = []
+    for stock in sum_index_series.index:
+        if sum_index_series[stock] == objective_value:
+            result.append(stock)
+    return result
+
+
+def get_trading_dates(start_period: str = "2014-01-01", end_period: str = "2018-12-31", market: str = "EUREX") -> pd.DatetimeIndex:
+    calendar = mcal.get_calendar(market)
+    schedule = calendar.schedule(start_date=start_period, end_date=end_period)
+    dates = mcal.date_range(schedule, frequency="1D")
+    return dates.strftime('%Y-%m-%d')
+
+
+def compute_market_returns(composition: pd.DataFrame, capitalization: pd.DataFrame, returns: pd.DataFrame, log=False) -> pd.Series:
+    """
+    Compute market return as the cap-weighted return of all the stocks.
+    :param composition:
+    :param capitalization:
+    :param returns:
+    :param log:
+    :return:
+    """
+    # Compute weights
+    weights = capitalization * composition
+    weights = weights / weights.sum()
+    weights = weights / weights.sum(axis=1).values.reshape((-1, 1))
 
 
 def get_ranking(predictions, N: list, prices : bool):
@@ -121,13 +196,13 @@ def plot_portfolios(portfolios_series: dict, index_ret, title=None):
     index_perf = (1 + index_ret).cumprod()
 
     plt.figure(figsize=(16, 9))
-    plt.plot(index_perf, label = 'SX5E performance')
+    plt.plot(index_perf, label='SX5E performance')
 
     for key, value in portfolios_series.items():
 
         portfolio_perf = (1 + value).cumprod()
 
-        plt.plot(portfolio_perf, label = key)
+        plt.plot(portfolio_perf, label=key)
 
     plt.title(title) 
     plt.legend()
