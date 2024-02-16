@@ -128,8 +128,10 @@ def compute_market_returns(composition: pd.DataFrame, capitalization: pd.DataFra
     """
     # Compute weights
     weights = capitalization * composition
-    weights = (weights.T / weights.sum(axis=1)).T
+    weights = weights / weights.sum(axis=1).values.reshape((-1, 1))
     weights.fillna(0, inplace=True)
+    weights = weights.loc[get_trading_dates()]
+    weights = weights.iloc[1:, :]
     returns = price_to_returns(prices, log=log, drop_na=False)
     weighted_returns = weights * returns
     result = pd.Series(weighted_returns.sum(axis=1), index=weights.index, name="SX5E_returns")
