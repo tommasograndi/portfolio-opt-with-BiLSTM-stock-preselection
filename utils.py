@@ -75,18 +75,12 @@ def setup_tables(df: pd.DataFrame) -> pd.DataFrame:
     X.rename(columns={col_name: "Date"}, inplace=True)
     X["Date"] = pd.to_datetime(X["Date"], format="%Y%m%d")
 
-    def _function(x):
-        return x.day_name()
-
-    days = X["Date"].apply(_function)
-
-    X.insert(1, column="Day_of_week", value=days)
     X.sort_values(by=["Date"], inplace=True)
     X.reset_index(drop=True, inplace=True)
     return X
 
 
-def select_time_slice(df: pd.DataFrame, start: int = 20020102, end: int = 20191013, date_column_name="Date") -> pd.DataFrame:
+def select_time_slice(df: pd.DataFrame, start: int = 20020102, end: int = 20191013) -> pd.DataFrame:
     """
     :param df: dataframe to slice
     :param start: starting day
@@ -97,8 +91,8 @@ def select_time_slice(df: pd.DataFrame, start: int = 20020102, end: int = 201910
     X = df.copy()
     start = pd.to_datetime(start, format="%Y%m%d")
     end = pd.to_datetime(end, format="%Y%m%d")
-    X = X[X[date_column_name] <= end]
-    X = X[X[date_column_name] >= start]
+    X = X.loc[X.index <= end]
+    X = X.loc[X.index >= start]
     return X
 
 
@@ -138,7 +132,7 @@ def compute_market_returns(composition: pd.DataFrame, capitalization: pd.DataFra
     weights.fillna(0, inplace=True)
     returns = price_to_returns(prices, log=log, drop_na=False)
     weighted_returns = weights * returns
-    result = pd.Series(weighted_returns.sum(axis=1), index=weights.index)
+    result = pd.Series(weighted_returns.sum(axis=1), index=weights.index, name="SX5E_returns")
     return result
 
 
