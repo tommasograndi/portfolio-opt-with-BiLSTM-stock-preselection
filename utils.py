@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import pandas_market_calendars as mcal
+import plotly.express as px
+import plotly.graph_objects as go
 
 
 def price_to_returns(df: pd.DataFrame, log=False, drop_na=False) -> pd.DataFrame:
@@ -210,11 +212,19 @@ def plot_portfolios(portfolios_series: dict, index_ret, title=None):
     plt.title(title) 
     plt.legend()
     plt.show()
-
     
-
-
+    # CHECK THIS
+    traces = []
     
-
-
+    traces.append(go.Scatter(x=index_perf.index, y=index_perf, mode='lines', name='SX5E performance'))
     
+    for key, value in portfolios_series.items():
+        traces.append(go.Scatter(x=value.index, y=(1 + value).cumprod(), mode='lines', name=key))
+        
+    layout = go.Layout(title='Top N Portfolios Performance with respect to SX5E',
+                   xaxis=dict(title='Date'),
+                   yaxis=dict(title='Values'))
+        
+    fig = go.Figure(data=traces, layout=layout)
+    
+    fig.show()
