@@ -160,6 +160,8 @@ def get_ranking(predictions, N: list, prices : bool):
     return portfolios
 
 
+######### DA RIFARE
+
 def calc_portfolios(assets : dict, test_ret):
 
     perf_portfolios = {}
@@ -168,23 +170,33 @@ def calc_portfolios(assets : dict, test_ret):
     # Calculate the portfolios performance (equal weight portfolio on the top stocks from the previous ranking)
     for key, choices in assets.items():
 
+        returns = test_ret
+
         n_assets = len(choices)
 
-        cum_test =  (1 + test_ret[choices]).prod() - 1
-
-        # calculate equal weight performance of our portfolio 
-        tot_performance = sum(cum_test * (1/n_assets))
-
         # Calculate daily returns for our portfolio
-        test_ret = test_ret * 1/n_assets  # weight daily returns of each stock by equal weight
-        daily_portfolio_returns = pd.Series(test_ret.sum(axis=1), index=test_ret.index) #sum over columns the weighted returns
+        returns = returns * 1/n_assets  # weight daily returns of each stock by equal weight
+        daily_portfolio_returns = pd.Series(returns.sum(axis=1), index=returns.index) #sum over columns the weighted returns
 
-        # store in the dictionary
-        perf_portfolios[key + ' performance'] = tot_performance
+        # store in the dictionary the series and the portfolio performance
         portfolios_series[key + ' series'] = daily_portfolio_returns
+        perf_portfolios[key + ' performance']  = (1 + daily_portfolio_returns).prod() - 1
 
     return perf_portfolios, portfolios_series
-    
+
+def calc_portfolios_2(assets : dict, prices):
+
+    perf_portfolios = {}
+    portfolios_series = {}
+
+    # Calculate the portfolios performance (equal weight portfolio on the top stocks from the previous ranking)
+    for key, choices in assets.items():
+
+
+
+    return perf_portfolios, portfolios_series
+
+#########
 
 def plot_portfolios(portfolios_series: dict, index_ret):
 
