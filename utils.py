@@ -184,17 +184,17 @@ def calc_portfolios(assets : dict, test_ret):
 
     return perf_portfolios, portfolios_series
 
-def calc_portfolios_2(assets : dict, prices):
+# def calc_portfolios_2(assets : dict, prices):
 
-    perf_portfolios = {}
-    portfolios_series = {}
+#     perf_portfolios = {}
+#     portfolios_series = {}
 
-    # Calculate the portfolios performance (equal weight portfolio on the top stocks from the previous ranking)
-    for key, choices in assets.items():
+#     # Calculate the portfolios performance (equal weight portfolio on the top stocks from the previous ranking)
+#     for key, choices in assets.items():
 
 
 
-    return perf_portfolios, portfolios_series
+#     return perf_portfolios, portfolios_series
 
 #########
 
@@ -217,3 +217,19 @@ def plot_portfolios(portfolios_series: dict, index_ret):
     fig = go.Figure(data=traces, layout=layout)
     
     fig.show()
+
+
+
+# functions for training and evaluation - training DL.ipynb
+# alternative to keras' TimeSeriesGenerator
+def split_sequence(sequence, look_back, forecast_horizon):
+    X, y = list(), list()
+    for i in range(len(sequence)):
+        lag_end = i + look_back
+        forecast_end = lag_end + forecast_horizon
+        if forecast_end > len(sequence):
+            break
+        seq_x, seq_y = sequence[i:lag_end], sequence[lag_end:forecast_end]
+        X.append(seq_x)
+        y.append(seq_y)
+    return np.array(X), np.array(y)
