@@ -186,30 +186,17 @@ def calc_portfolios(assets : dict, test_ret):
     return perf_portfolios, portfolios_series
     
 
-def plot_portfolios(portfolios_series: dict, index_ret, title=None):
+def plot_portfolios(portfolios_series: dict, index_ret):
 
     index_perf = (1 + index_ret).cumprod()
 
-    plt.figure(figsize=(16, 9))
-    plt.plot(index_perf, label='SX5E performance')
-
-    for key, value in portfolios_series.items():
-
-        portfolio_perf = (1 + value).cumprod()
-
-        plt.plot(portfolio_perf, label=key)
-
-    plt.title(title) 
-    plt.legend()
-    plt.show()
-    
-    # CHECK THIS
     traces = []
     
     traces.append(go.Scatter(x=index_perf.index, y=index_perf, mode='lines', name='SX5E performance'))
     
     for key, value in portfolios_series.items():
-        traces.append(go.Scatter(x=value.index, y=(1 + value).cumprod(), mode='lines', name=key))
+        perf = (1 + value).cumprod()
+        traces.append(go.Scatter(x=value.index, y=perf, mode='lines', name=key))
         
     layout = go.Layout(title='Top N Portfolios Performance with respect to SX5E',
                    xaxis=dict(title='Date'),
