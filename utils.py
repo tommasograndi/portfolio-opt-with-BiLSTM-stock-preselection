@@ -104,7 +104,7 @@ def get_full_time_stock_in_period(comp_df: pd.DataFrame) -> list:
     return result
 
 
-def get_trading_dates(start_period: str = "2014-01-01", end_period: str = "2018-12-31", market: str = "EUREX") -> pd.DatetimeIndex:
+def get_trading_dates(start_period: str = "2013-01-01", end_period: str = "2017-12-31", market: str = "EUREX") -> pd.DatetimeIndex:
     calendar = mcal.get_calendar(market)
     schedule = calendar.schedule(start_date=start_period, end_date=end_period)
     dates = mcal.date_range(schedule, frequency="1D")
