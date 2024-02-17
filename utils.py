@@ -23,29 +23,21 @@ def price_to_returns(df: pd.DataFrame, log=False, drop_na=False) -> pd.DataFrame
     return result
 
 
-# comulative returns from a series 
-def cumulative_returns_from_series(series: pd.Series, log=False, start=1) -> np.array:
+# cumulative returns for a series 
+def cumulative_returns_from_series(series: pd.Series, log=False, starting_capital=1) -> pd.Series:
     """
     :param series: pandas series of returns.
     :param log: True if returns are in logarithmic form.
-    :param start: starting value of returns (starting price). Default=1.
-    :return: array of cumulative returns.
+    :param start: starting capital. Default=1.
+    :return: pd.series of cumulative returns.
     """
-    result = []
-    for i in range(len(series)):
-        if i == 0:
-            result.append(start)
-        else:
-            if not log:
-                # Compute standard cumulative returns
-                ret_i = result[-1] * (1 + series.iloc[i])
-                result.append(ret_i)
-            else:
-                # Compute logarithmic cumulative returns
-                ret_i = np.exp(series.iloc[i]) * result[-1]
-    return np.array(result)
+
+    result = (starting_capital + series).cumprod()
+
+    return pd.Series(result, index = series.index)
 
 
+# DA CORREGGERE
 # cumulative returns for a whole dataframe
 def cumulative_returns(df: pd.DataFrame, log=False, start: list = None) -> pd.DataFrame:
     """
@@ -68,7 +60,7 @@ def cumulative_returns(df: pd.DataFrame, log=False, start: list = None) -> pd.Da
 
 def setup_tables(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Used to add column date to dataframe and day of week. Sort df by date.
+    Used to add column date to dataframe. Sort df by date.
     :param df: starting dataframe
     :return: df with changed column
     """
@@ -119,26 +111,25 @@ def get_trading_dates(start_period: str = "2014-01-01", end_period: str = "2018-
     return dates.strftime('%Y-%m-%d')
 
 
-def compute_market_returns(composition: pd.DataFrame, capitalization: pd.DataFrame, prices: pd.DataFrame, log=False) -> pd.Series:
+def compute_market_returns(composition: pd.DataFrame, capitalization: pd.DataFrame, returns: pd.DataFrame, log=True) -> pd.Series:
     """
     Compute market return as the cap-weighted return of all the stocks.
     :param composition:
     :param capitalization:
-    :param returns:
-    :param log:
-    :return:
+    :param prices: price df for all the stocks composing the index []; for your period of interest
+
+    :--RETURN: series with returns of the index (weighted by market capitalization)
     """
     # Compute weights
     weights = capitalization * composition
     weights = weights / weights.sum(axis=1).values.reshape((-1, 1))
     weights.fillna(0, inplace=True)
-    weights = weights.loc[get_trading_dates()]
-    weights = weights.iloc[1:, :]
-    returns = price_to_returns(prices, log=log, drop_na=False)
+
+    weights = weights.loc[returns.index[0]:, :] #starting date of weights = starting date of returns
+
     weighted_returns = weights * returns
     result = pd.Series(weighted_returns.sum(axis=1), index=weights.index, name="SX5E_returns")
     return result
-
 
 
 def get_ranking(predictions, N: list, prices : bool):
@@ -165,8 +156,7 @@ def get_ranking(predictions, N: list, prices : bool):
         portfolios[f'Top{i}'] = list(ranking[:i])
 
     # Return N lists with names of the top stocks according to the model's ranking
-    # basically the stocks composing each portfolio with N stocks
-       
+    # basically the stocks composing each portfolio with N stocks 
     return portfolios
 
 
@@ -176,17 +166,17 @@ def calc_portfolios(assets : dict, test_ret):
     portfolios_series = {}
 
     # Calculate the portfolios performance (equal weight portfolio on the top stocks from the previous ranking)
-    for key, value in assets.items():
+    for key, choices in assets.items():
 
-        n_assets = len(value)
+        n_assets = len(choices)
 
-        cum_test =  (1 + test_ret[value]).prod() - 1
+        cum_test =  (1 + test_ret[choices]).prod() - 1
 
         # calculate equal weight performance of our portfolio 
         tot_performance = sum(cum_test * (1/n_assets))
 
         # Calculate daily returns for our portfolio
-        test_ret *= 1/n_assets  #weight daily returns of each stock by equal weight
+        test_ret = test_ret * 1/n_assets  # weight daily returns of each stock by equal weight
         daily_portfolio_returns = pd.Series(test_ret.sum(axis=1), index=test_ret.index) #sum over columns the weighted returns
 
         # store in the dictionary
