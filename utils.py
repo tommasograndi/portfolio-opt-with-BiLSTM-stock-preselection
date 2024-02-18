@@ -32,30 +32,9 @@ def cumulative_returns_from_series(series: pd.Series, log=False, starting_capita
     :return: pd.series of cumulative returns.
     """
 
-    result = (starting_capital + series).cumprod()
+    result = starting_capital * (1 + series).cumprod()
 
     return pd.Series(result, index = series.index)
-
-
-# DA CORREGGERE
-# cumulative returns for a whole dataframe
-def cumulative_returns(df: pd.DataFrame, log=False, start: list = None) -> pd.DataFrame:
-    """
-    :param df: starting pandas dataframe with returns
-    :param log: True if returns are in logarithmic form.
-    :param start: strting prices
-    :return: dataframe with cumulative returns
-    """
-    if start is None:
-        start = [1 for i in range(df.shape[1])]
-    else:
-        if len(start) != df.shape[1]:
-            sys.exit("start parameter not valid. Length must be {}".format(df.shape[1]))
-    result = dict()
-    # Compute cum-returns for each column (stock)
-    for i in range(len(start)):
-        result[df.columns[i]] = cumulative_returns_from_series(df[df.columns[i]], log=log, start=start[i])
-    return pd.DataFrame(result)
 
 
 def setup_tables(df: pd.DataFrame) -> pd.DataFrame:
@@ -131,6 +110,32 @@ def compute_market_returns(composition: pd.DataFrame, capitalization: pd.DataFra
     result = pd.Series(weighted_returns.sum(axis=1), index=weights.index, name="SX5E_returns")
     return result
 
+def get_ranking(predictions, N: list, prices : bool):
+    """
+    Considering the df of predictions:
+    1) Calculate the cumulative returns for each stock (for the considered period)
+    2) Calculate the ranking in descending order for the cumulative returns
+    3) Select the top stocks among the ranking (for all top Ns)
+    """
+
+    if prices:
+        returns = price_to_returns(predictions, log=True, drop_na=True)
+
+        cum_returns = (1 + returns).prod() - 1
+    
+    else:
+        cum_returns = (1 + predictions).prod() - 1
+
+    ranking = cum_returns.sort_values(ascending=False).index
+
+    portfolios = {}
+
+    for i in N:
+        portfolios[f'Top{i}'] = list(ranking[:i])
+
+    # Return N lists with names of the top stocks according to the model's ranking
+    # basically the stocks composing each portfolio with N stocks 
+    return portfolios
 
 def calc_portfolios(assets : dict, stock_prices, initial_investment):
 
@@ -165,42 +170,11 @@ def calc_portfolios(assets : dict, stock_prices, initial_investment):
     return perf_portfolios, portfolios_series
 
 
-#### DA CORREGGERE GET_RANKING & plot portfolios (per plottare index performance)
-
-def get_ranking(predictions, N: list, prices : bool):
-    """
-    Considering the df of predictions:
-    1) Calculate the cumulative returns for each stock (for the considered period)
-    2) Calculate the ranking in descending order for the cumulative returns
-    3) Select the top stocks among the ranking (for all top Ns)
-    """
-
-    if prices:
-        returns = price_to_returns(predictions, log=True, drop_na=True)
-
-        cum_returns = (1 + returns).prod() - 1
-    
-    else:
-        cum_returns = (1 + predictions).prod() - 1
-
-    ranking = cum_returns.sort_values(ascending=False).index
-
-    portfolios = {}
-
-    for i in N:
-        portfolios[f'Top{i}'] = list(ranking[:i])
-
-    # Return N lists with names of the top stocks according to the model's ranking
-    # basically the stocks composing each portfolio with N stocks 
-    return portfolios
-
-def plot_portfolios(portfolios_series: dict, index_ret):
-
-    index_perf = (1 + index_ret).cumprod()
+def plot_portfolios(portfolios_series: dict, index_perf):
 
     traces = []
     
-    traces.append(go.Scatter(x=index_perf.index, y=index_perf, mode='lines', name='SX5E performance'))
+    traces.append(go.Scatter(x=index_perf.index, y=index_perf.values, mode='lines', name='SX5E performance'))
     
     for key, series in portfolios_series.items():
 
@@ -213,7 +187,6 @@ def plot_portfolios(portfolios_series: dict, index_ret):
     fig = go.Figure(data=traces, layout=layout)
     
     fig.show()
-
 
 
 # functions for training and evaluation - training DL.ipynb
