@@ -132,6 +132,41 @@ def compute_market_returns(composition: pd.DataFrame, capitalization: pd.DataFra
     return result
 
 
+def calc_portfolios(assets : dict, stock_prices, initial_investment):
+
+    perf_portfolios = {}
+    portfolios_series = {}
+
+    # Calculate the portfolios performance (equal weight portfolio on the top stocks from the previous ranking)
+    for key, choices in assets.items():
+
+        prices = stock_prices[choices]
+        n_assets = len(choices)
+
+        # Calculate the initial investment per stock
+        initial_investment_per_stock = (initial_investment / n_assets) / prices.iloc[0]
+
+        # Initialize list to store daily total portfolio values
+        daily_portfolio_value = []
+
+        # Iterate over each day in the investment period
+        for day in prices.index:
+            portfolio_value = sum(initial_investment_per_stock * prices.loc[day])
+            # Append the total value to the list of daily portfolio values
+            daily_portfolio_value.append(portfolio_value)
+
+        # Calculate the total performance
+        performance = ((daily_portfolio_value[-1] - initial_investment) / initial_investment) * 100
+
+        # store in the dictionary the series and the portfolio performance
+        portfolios_series[key + ' series'] = pd.Series(daily_portfolio_value, index = prices.index)
+        perf_portfolios[key + ' performance']  = performance
+
+    return perf_portfolios, portfolios_series
+
+
+#### DA CORREGGERE GET_RANKING & plot portfolios (per plottare index performance)
+
 def get_ranking(predictions, N: list, prices : bool):
     """
     Considering the df of predictions:
@@ -159,45 +194,6 @@ def get_ranking(predictions, N: list, prices : bool):
     # basically the stocks composing each portfolio with N stocks 
     return portfolios
 
-
-######### DA RIFARE
-
-def calc_portfolios(assets : dict, test_ret):
-
-    perf_portfolios = {}
-    portfolios_series = {}
-
-    # Calculate the portfolios performance (equal weight portfolio on the top stocks from the previous ranking)
-    for key, choices in assets.items():
-
-        returns = test_ret
-
-        n_assets = len(choices)
-
-        # Calculate daily returns for our portfolio
-        returns = returns * 1/n_assets  # weight daily returns of each stock by equal weight
-        daily_portfolio_returns = pd.Series(returns.sum(axis=1), index=returns.index) #sum over columns the weighted returns
-
-        # store in the dictionary the series and the portfolio performance
-        portfolios_series[key + ' series'] = daily_portfolio_returns
-        perf_portfolios[key + ' performance']  = (1 + daily_portfolio_returns).prod() - 1
-
-    return perf_portfolios, portfolios_series
-
-# def calc_portfolios_2(assets : dict, prices):
-
-#     perf_portfolios = {}
-#     portfolios_series = {}
-
-#     # Calculate the portfolios performance (equal weight portfolio on the top stocks from the previous ranking)
-#     for key, choices in assets.items():
-
-
-
-#     return perf_portfolios, portfolios_series
-
-#########
-
 def plot_portfolios(portfolios_series: dict, index_ret):
 
     index_perf = (1 + index_ret).cumprod()
@@ -206,9 +202,9 @@ def plot_portfolios(portfolios_series: dict, index_ret):
     
     traces.append(go.Scatter(x=index_perf.index, y=index_perf, mode='lines', name='SX5E performance'))
     
-    for key, value in portfolios_series.items():
-        perf = (1 + value).cumprod()
-        traces.append(go.Scatter(x=value.index, y=perf, mode='lines', name=key))
+    for key, series in portfolios_series.items():
+
+        traces.append(go.Scatter(x=series.index, y=series, mode='lines', name=key))
         
     layout = go.Layout(title='Top N Portfolios Performance with respect to SX5E',
                    xaxis=dict(title='Date'),
