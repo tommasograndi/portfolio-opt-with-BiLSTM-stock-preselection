@@ -239,6 +239,10 @@ def MC_portfolios(model, n_sim, X_train, y_train, X_test, y_test, stocks_returns
         ### FIT MODEL
         model.fit(X_train, y_train, epochs=50, batch_size=32, verbose=0)
 
+        ### SUPPRESS BACKWARD LAYER FOR TESTING/PREDICTING
+        model.layers[0].backward_layer.go_backwards = False
+        model.layers[2].backward_layer.go_backwards = False
+
         ### MODEL PREDICT
         yhat = model.predict(X_test, verbose=0)
 
