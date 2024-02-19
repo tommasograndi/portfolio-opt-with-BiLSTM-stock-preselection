@@ -120,7 +120,6 @@ def get_ranking(predictions, N: list, prices : bool):
 
     if prices:
         returns = price_to_returns(predictions, log=True, drop_na=True)
-
         cum_returns = (1 + returns).prod() - 1
     
     else:
@@ -131,63 +130,70 @@ def get_ranking(predictions, N: list, prices : bool):
     portfolios = {}
 
     for i in N:
-        portfolios[f'Top{i}'] = list(ranking[:i])
+        portfolios[f'Top {i}'] = list(ranking[:i])
 
     # Return N lists with names of the top stocks according to the model's ranking
     # basically the stocks composing each portfolio with N stocks 
     return portfolios
 
-def calc_portfolios(assets : dict, stock_prices, initial_investment):
+def calc_portfolios(assets : dict, test_ret):
 
-    perf_portfolios = {}
-    portfolios_series = {}
+    """
+    This function basically extract the returns of the stocks 'chosen' from our models. 
+    Then compute the cumulative returns series for each strategy (top 5, top 7, top 10)
+
+    INPUT:
+    - assets : dictionary with key(=name of the portfolio), value (= list with names of assets in the portfolio)
+    - test_returns : series containing the returns dataframe of all assets in the index
+
+    RETURN-- portfolios; dictionary containing returns, cumulative returns and total performance for each portfolio
+    """
+    
+    portfolios_returns = {}
+    portfolios_perf = {}
 
     # Calculate the portfolios performance (equal weight portfolio on the top stocks from the previous ranking)
     for key, choices in assets.items():
 
-        prices = stock_prices[choices]
+        returns = test_ret[choices]
+
         n_assets = len(choices)
 
-        # Calculate the initial investment per stock
-        initial_investment_per_stock = (initial_investment / n_assets) / prices.iloc[0]
-
-        # Initialize list to store daily total portfolio values
-        daily_portfolio_value = []
-
-        # Iterate over each day in the investment period
-        for day in prices.index:
-            portfolio_value = sum(initial_investment_per_stock * prices.loc[day])
-            # Append the total value to the list of daily portfolio values
-            daily_portfolio_value.append(portfolio_value)
-
-        # Calculate the total performance
-        performance = ((daily_portfolio_value[-1] - initial_investment) / initial_investment) * 100
+        # Calculate daily returns for our portfolio
+        returns = returns * 1/n_assets  # weight daily returns of each stock by equal weight
+        daily_portfolio_returns = pd.Series(returns.sum(axis=1), index=returns.index) #sum over columns the weighted returns
 
         # store in the dictionary the series and the portfolio performance
-        portfolios_series[key + ' series'] = pd.Series(daily_portfolio_value, index = prices.index)
-        perf_portfolios[key + ' performance']  = performance
+        portfolios_returns[key + ' returns'] = daily_portfolio_returns
+        portfolios_perf[key + ' total performance']  = ((1 + daily_portfolio_returns).prod() - 1) * 100
+    
+    return portfolios_perf, portfolios_returns
 
-    return perf_portfolios, portfolios_series
 
-
-def plot_portfolios(portfolios_series: dict, index_perf):
+def plot_portfolios(portfolios_returns: dict, benchmark_returns, renderer=False):
 
     traces = []
-    
-    traces.append(go.Scatter(x=index_perf.index, y=index_perf.values, mode='lines', name='SX5E performance'))
-    
-    for key, series in portfolios_series.items():
 
-        traces.append(go.Scatter(x=series.index, y=series, mode='lines', name=key))
+    benchmark_perf = (1 + benchmark_returns).cumprod()
+    
+    traces.append(go.Scatter(x=benchmark_perf.index, y=benchmark_perf.values, mode='lines', name='SX5E performance'))
+    
+    for key, series in portfolios_returns.items():
+
+        series_perf = (1 + series).cumprod()
+
+        traces.append(go.Scatter(x=series_perf.index, y=series_perf, mode='lines', name=key))
         
-    layout = go.Layout(title='Top N Portfolios Performance with respect to SX5E',
+    layout = go.Layout(title='Cumulative returns : Top N Portfolios vs SX5E (benchmark)',
                    xaxis=dict(title='Date'),
                    yaxis=dict(title='Values'))
         
     fig = go.Figure(data=traces, layout=layout)
     
-    fig.show(renderer='svg')
-
+    if renderer:
+        fig.show(renderer='svg')
+    else:
+        fig.show()
 
 # functions for training and evaluation - training DL.ipynb
 # alternative to keras' TimeSeriesGenerator
