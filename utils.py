@@ -6,6 +6,8 @@ import pandas_market_calendars as mcal
 import plotly.express as px
 import plotly.graph_objects as go
 
+import quantstats as qs
+
 
 def price_to_returns(df: pd.DataFrame, log=False, drop_na=False) -> pd.DataFrame:
     """
@@ -120,10 +122,10 @@ def get_ranking(predictions, N: list, prices : bool):
 
     if prices:
         returns = price_to_returns(predictions, log=True, drop_na=True)
-        cum_returns = (1 + returns).prod() - 1
+        cum_returns = (1 + returns).cumprod().iloc[-1, :]
     
     else:
-        cum_returns = (1 + predictions).prod() - 1
+        cum_returns = (1 + returns).cumprod().iloc[-1, :]
 
     ranking = cum_returns.sort_values(ascending=False).index
 
@@ -165,7 +167,7 @@ def calc_portfolios(assets : dict, test_ret):
 
         # store in the dictionary the series and the portfolio performance
         portfolios_returns[key + ' returns'] = daily_portfolio_returns
-        portfolios_perf[key + ' total performance']  = ((1 + daily_portfolio_returns).prod() - 1) * 100
+        portfolios_perf[key + ' total performance']  = ((1 + daily_portfolio_returns).cumprod())[-1] * 100
     
     return portfolios_perf, portfolios_returns
 
@@ -208,3 +210,110 @@ def split_sequence(sequence, look_back, forecast_horizon):
         X.append(seq_x)
         y.append(seq_y)
     return np.array(X), np.array(y)
+
+
+def MC_portfolios(model, n_sim, X_train, y_train, X_test, y_test, stocks_returns, date_index, stocks_names, LOOK_BACK=None):
+
+    best_ret = []
+    best_cumret = []
+    best_list = []
+    best_perf = []
+
+    worst_ret = []
+    worst_cumret = []
+    worst_perf = []
+
+
+    for _ in range(n_sim):
+
+        ### RECOMPILE MODEL
+        model = Sequential(name='LSTM')
+        model.add(LSTM(100, activation='relu', input_shape=(LOOK_BACK, 41)))
+        model.add(RepeatVector(1))   
+        model.add(LSTM(100, activation='relu', return_sequences=True))
+        model.add(TimeDistributed(Dense(41)))
+        model.compile(optimizer='adam', loss='mse')
+
+        ### FIT MODEL
+        model.fit(X_train, y_train, epochs=50, batch_size=32, verbose=0)
+
+        ### MODEL PREDICT
+        yhat = model.predict(X_test, verbose=0)
+
+        ### PROCESS PREDICTIONS
+        yhat_inverse, y_test_inverse = inverse_transform(y_test, yhat)
+
+        yhat_inverse_df = pd.DataFrame(yhat_inverse, index=date_index, columns=stocks_names)
+
+        ### CALCULATE RANKING AND PORTFOLIOS PERFORMANCE
+        ranking = get_ranking(yhat_inverse_df, N = [5, 7, 10], prices=True)
+        performance, returns = calc_portfolios(ranking, stocks_returns.loc[yhat_inverse_df.index[0]:])
+
+        # Get the best portfolio for this simulation and store it
+        best = max(performance, key=lambda k: performance[k]).split(' total performance')[0]
+        best_list.append(int(best[4:5]))
+        best_perf.append(max(performance.values()))
+
+        worst = min(performance, key=lambda k: performance[k]).split(' total performance')[0]
+        worst_perf.append(min(performance.values()))
+
+        # Store the best portfolio returns and cumreturns
+        best_ret.append(returns[best + ' returns']) 
+        best_cumret.append(((1 + returns[best + ' returns']).cumprod())) 
+
+        # Store the worst portfolio returns and cumreturns
+        worst_ret.append(returns[worst + ' returns'])
+        worst_cumret.append(((1 + returns[worst + ' returns']).cumprod())) 
+
+        print(performance)
+        print(f'{_+1}/{n_sim} \n')
+
+    return best_ret, best_cumret, best_list, best_perf, worst_ret, worst_cumret,  worst_perf
+
+
+def compare_MC(test_index_returns, best_returns, best_perf, worst_returns, worst_perf, best_list):
+
+    index_final_perf = ((1 + test_index_returns).cumprod() - 1)[-1] * 100
+
+    unique_values, counts = np.unique(best_list, return_counts=True)
+    # Create a DataFrame to store unique values and their counts
+    best_counter = pd.DataFrame({'Top': unique_values, 'Frequency': counts})
+    best_counter.sort_values(by='Frequency', inplace=True, ascending=False)
+
+    print('Number of times an N-portfolio was the best performing: ')
+    display(best_counter)
+
+        
+    best_sharpe = np.mean([qs.stats.sharpe(series) for series in best_returns])
+    best_md = np.mean([qs.stats.max_drawdown(series) for series in best_returns]) * 100
+    best_avg_aret = np.mean([((1 + np.mean(series)) ** 254 - 1)  for series in best_returns]) * 100
+    best_vol = np.mean([qs.stats.volatility(series) for series in best_returns])  * 100
+
+    worst_sharpe = np.mean([qs.stats.sharpe(series) for series in worst_returns])
+    worst_md = np.mean([qs.stats.max_drawdown(series) for series in worst_returns]) * 100
+    worst_avg_aret = np.mean([((1 + np.mean(series)) ** 254 - 1)  for series in worst_returns]) * 100
+    worst_vol = np.mean([qs.stats.volatility(series) for series in worst_returns]) * 100
+ 
+    print('\n')
+    print('Average metrics of best portfolio & worst portfolio vs SX5E metrics')
+
+    display(pd.DataFrame(
+        {'Sharpe ratio' : [qs.stats.sharpe(test_index_returns), best_sharpe, worst_sharpe],
+        'Max_drawdown' : [(qs.stats.max_drawdown(test_index_returns)*100), best_md, worst_md],
+        'Annualized Return' : [((1 + np.mean(test_index_returns)) ** 254 - 1) * 100, best_avg_aret, worst_avg_aret],
+        'Annualized Vol' : [qs.stats.volatility(test_index_returns)*100, best_vol, worst_vol]},
+        index=['Benchmark', 'Best performing', 'Worst performing']
+    ).T)
+
+    print('\n')
+    print('Min and max performance of BEST and WORST performing portfolios')
+    display(pd.DataFrame(
+        {'Min ': [min(best_perf), min(worst_perf)],
+        'Max' : [max(best_perf), max(worst_perf)]},
+        index=['Best performing', 'Worst performing']
+    ))
+
+    print('\n')
+    print('Frequency of Worst performing portfolios with performance smaller than SX5E performance: ', 
+      sum(1 for worst in worst_perf if worst < index_final_perf))
+    
