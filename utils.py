@@ -186,7 +186,7 @@ def plot_portfolios(portfolios_series: dict, index_perf):
         
     fig = go.Figure(data=traces, layout=layout)
     
-    fig.show()
+    fig.show(renderer='svg')
 
 
 # functions for training and evaluation - training DL.ipynb
