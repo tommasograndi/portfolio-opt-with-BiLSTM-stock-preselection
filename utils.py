@@ -212,7 +212,7 @@ def split_sequence(sequence, look_back, forecast_horizon):
     return np.array(X), np.array(y)
 
 
-def MC_portfolios(model, n_sim, X_train, y_train, X_test, y_test, stocks_returns, date_index, stocks_names, LOOK_BACK=LOOK_BACK):
+def MC_portfolios(model, n_sim, X_train, y_train, X_test, y_test, stocks_returns, date_index, stocks_names, LOOK_BACK=15):
 
     best_ret = []
     best_cumret = []
