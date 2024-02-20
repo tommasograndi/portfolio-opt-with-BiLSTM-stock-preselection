@@ -24,7 +24,6 @@ def price_to_returns(df: pd.DataFrame, log=False, drop_na=False) -> pd.DataFrame
         result = result.dropna()
     return result
 
-
 # cumulative returns for a series 
 def cumulative_returns_from_series(series: pd.Series, log=False, starting_capital=1) -> pd.Series:
     """
@@ -189,7 +188,7 @@ def plot_portfolios(portfolios_returns: dict, benchmark_returns, renderer=False)
         
     layout = go.Layout(title='Cumulative returns : Top N Portfolios vs SX5E (benchmark)',
                    xaxis=dict(title='Date'),
-                   yaxis=dict(title='Values'))
+                   yaxis=dict(title='Values'), width=1000)
         
     fig = go.Figure(data=traces, layout=layout)
     
