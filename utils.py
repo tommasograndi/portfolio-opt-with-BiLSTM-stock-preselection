@@ -167,8 +167,7 @@ def calc_portfolios(assets : dict, test_ret):
 
         # store in the dictionary the series and the portfolio performance
         portfolios_returns[key + ' returns'] = daily_portfolio_returns
-        portfolios_perf[key + ' total performance']  = ((1 + daily_portfolio_returns).prod() - 1) * 100
-        # portfolios_perf[key + ' total performance']  = ((1 + daily_portfolio_returns).cumprod())[-1] * 100
+        portfolios_perf[key + ' total performance']  = ((1 + daily_portfolio_returns).cumprod() - 1)[-1] * 100
 
     
     return portfolios_perf, portfolios_returns
