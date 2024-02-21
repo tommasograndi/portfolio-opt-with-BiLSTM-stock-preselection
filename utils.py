@@ -25,7 +25,7 @@ def price_to_returns(df: pd.DataFrame, log=False, drop_na=False) -> pd.DataFrame
     return result
 
 # cumulative returns for a series 
-def cumulative_returns_from_series(series: pd.Series, log=False, starting_capital=1) -> pd.Series:
+def cumulative_returns_from_series(series: pd.Series) -> pd.Series:
     """
     :param series: pandas series of returns.
     :param log: True if returns are in logarithmic form.
@@ -33,7 +33,7 @@ def cumulative_returns_from_series(series: pd.Series, log=False, starting_capita
     :return: pd.series of cumulative returns.
     """
 
-    result = starting_capital * (1 + series).cumprod()
+    result = (1 + series).cumprod()
 
     return pd.Series(result, index = series.index)
 
@@ -145,7 +145,7 @@ def get_ranking(predictions, N: list, prices : bool):
     return portfolios
 
 
-def calc_portfolios(assets : dict, test_ret, log=True):
+def calc_portfolios(assets : dict, test_ret):
     """
     This function basically extract the returns of the stocks 'chosen' from our models. 
     Then compute the cumulative returns series for each strategy (top 5, top 7, top 10)
@@ -169,14 +169,14 @@ def calc_portfolios(assets : dict, test_ret, log=True):
         n_assets = len(choices)
 
         # Compute daily cum returns for the stocks in the portfolio
-        port_stocks_cum_ret = cumulative_returns_from_series(returns, log=log)
+        port_stocks_cum_ret = cumulative_returns_from_series(returns)
         # Divide in order to have equal weight
         port_stocks_cum_ret = port_stocks_cum_ret / n_assets
 
         # Compute portfolio cumulative returns
         portfolio_cum_returns = port_stocks_cum_ret.sum(axis=1)
 
-        x = price_to_returns(portfolio_cum_returns, log=log)
+        x = price_to_returns(portfolio_cum_returns, log=True)
         # Substitute first value with the average of the first row of test returns
         x.iloc[0] = returns.iloc[0, :].mean()
         
