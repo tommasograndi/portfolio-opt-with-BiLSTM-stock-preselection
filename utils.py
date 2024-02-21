@@ -106,16 +106,10 @@ def compute_market_returns(composition: pd.DataFrame, capitalization: pd.DataFra
     weights.fillna(0, inplace=True)
 
     weights = weights.loc[returns.index[0]:, :] #starting date of weights = starting date of returns
-    
-    cum_returns = (1 + returns).cumprod()
 
-    weighted_cumret = weights * cum_returns
-    index_cumret = weighted_cumret.sum(axis=1)
-    
-    x = price_to_returns(index_cumret, log=log)
-    x.iloc[0] = (returns.iloc[0, :] * weights.iloc[0, :]).sum()
-    
-    return pd.Series(x, index=weights.index, name="SX5E_returns")
+    weighted_returns = weights * returns
+    result = pd.Series(weighted_returns.sum(axis=1), index=weights.index, name="SX5E_returns")
+    return result
 
 
 def get_ranking(predictions, N: list, prices : bool):
@@ -146,6 +140,7 @@ def get_ranking(predictions, N: list, prices : bool):
 
 
 def calc_portfolios(assets : dict, test_ret):
+
     """
     This function basically extract the returns of the stocks 'chosen' from our models. 
     Then compute the cumulative returns series for each strategy (top 5, top 7, top 10)
@@ -163,26 +158,19 @@ def calc_portfolios(assets : dict, test_ret):
     # Calculate the portfolios performance (equal weight portfolio on the top stocks from the previous ranking)
     for key, choices in assets.items():
 
-        # Select stock from true dataframe
         returns = test_ret[choices]
-        # Number of selected stocks
+
         n_assets = len(choices)
 
-        # Compute daily cum returns for the stocks in the portfolio
-        port_stocks_cum_ret = cumulative_returns_from_series(returns)
-        # Divide in order to have equal weight
-        port_stocks_cum_ret = port_stocks_cum_ret / n_assets
+        # Calculate daily returns for our portfolio
+        returns = returns * 1/n_assets  # weight daily returns of each stock by equal weight
+        daily_portfolio_returns = pd.Series(returns.sum(axis=1), index=returns.index) #sum over columns the weighted returns
 
-        # Compute portfolio cumulative returns
-        portfolio_cum_returns = port_stocks_cum_ret.sum(axis=1)
-
-        x = price_to_returns(portfolio_cum_returns, log=True)
-        # Substitute first value with the average of the first row of test returns
-        x.iloc[0] = returns.iloc[0, :].mean()
-        
         # store in the dictionary the series and the portfolio performance
-        portfolios_returns[key + ' returns'] = x
-        portfolios_perf[key + ' total performance']  = 100 * (portfolio_cum_returns.iloc[-1] - 1)
+        portfolios_returns[key + ' returns'] = daily_portfolio_returns
+        portfolios_perf[key + ' total performance']  = ((1 + daily_portfolio_returns).cumprod())[-1] * 100
+    
+    return portfolios_perf, portfolios_returns
 
     
     return portfolios_perf, portfolios_returns
