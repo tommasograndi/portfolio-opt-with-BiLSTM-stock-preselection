@@ -172,9 +172,6 @@ def calc_portfolios(assets : dict, test_ret):
     
     return portfolios_perf, portfolios_returns
 
-    
-    return portfolios_perf, portfolios_returns
-
 
 def plot_portfolios(portfolios_returns: dict, benchmark_returns, renderer=False):
 
